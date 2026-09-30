@@ -94,7 +94,7 @@ hood.xStatus = () => xposter.status();
 const ownerCore = createOwnerCore({ hood });
 const owner = createOwnerApi({ hood, core: ownerCore, ownerKey: fs.readFileSync(ownerKeyFile, 'utf8').trim() });
 // ...and the website's /admin/ page, behind the owner's password (STATE_DIR/admin.json; node tools.mjs admin-password)
-const admin = createAdmin({ hood, core: ownerCore, stateDir: cfg.stateDir });
+const admin = createAdmin({ hood, core: ownerCore, stateDir: cfg.stateDir, xposter });
 
 const snapshot = () => ({
   ...publicState(hood.s), epochMs: cfg.epochMs, tickMs: cfg.tickMs, seatHoldMs: cfg.seatHoldMs,
@@ -195,6 +195,8 @@ const server = http.createServer(async (req, res) => {
       return mcp(req, res, url, req.method === 'POST' ? await readBody(req) : '');
     }
     if (p.startsWith('/owner-api/')) return owner(req, res, url, req.method === 'POST' ? await readBody(req, 8192) : '');
+    // an X app whose callback URI is the site root lands here: hand the one-time code to the admin's X callback
+    if (p === '/' && url.searchParams.get('code') && url.searchParams.get('state')) { url.pathname = '/admin/x/callback'; return admin(req, res, url, ''); }
     if (p.startsWith('/runner/v1/')) return runner(req, res, url, req.method === 'POST' ? await readBody(req, 8192) : '');
     if (p === '/admin' || p.startsWith('/admin/')) return admin(req, res, url, req.method === 'POST' ? await readBody(req, 8192) : '');
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }

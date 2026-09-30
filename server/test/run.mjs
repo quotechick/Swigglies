@@ -935,4 +935,81 @@ await test('X posts: OAuth 1.0a signs like the published example; every executed
   again.stop(); rl.stop();
 });
 
+await test('X via OAuth 2.0: Connect X from the admin page (PKCE, one-time state), then posts with a token the server renews itself', async () => {
+  const { createXPoster } = await import('../xpost.mjs');
+  const { createOwnerCore } = await import('../owner.mjs');
+  const { createAdmin, writeAdminPassword } = await import('../admin.mjs');
+  const { hood } = makeHood();
+  await hood.run(() => hood.refresh());
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dh-x2o-'));
+  let t = 5_000_000;
+  const calls = [];
+  let tokenN = 0;
+  const fakeFetch = async (url, init = {}) => {
+    calls.push({ url, init });
+    if (url === 'https://api.x.com/2/oauth2/token') { tokenN++; return { status: 200, json: async () => ({ token_type: 'bearer', access_token: `at${tokenN}`, refresh_token: `rt${tokenN}`, expires_in: 7200, scope: 'tweet.read tweet.write users.read offline.access' }), headers: { get: () => null } }; }
+    if (url === 'https://api.x.com/2/users/me') return { status: 200, json: async () => ({ data: { id: '42', username: 'swigglieslog' } }), headers: { get: () => null } };
+    if (url === 'https://api.x.com/2/tweets') return { status: 201, json: async () => ({ data: { id: String(900 + calls.length) } }), headers: { get: () => null } };
+    return { status: 404, json: async () => ({}), headers: { get: () => null } };
+  };
+  const env = { X_CLIENT_ID: 'cid', X_CLIENT_SECRET: 'csec', PUBLIC_URL: 'https://hood.example/' };
+  const x = createXPoster({ hood, env, stateDir: dir, fetchImpl: fakeFetch, gapMs: 0, now: () => t });
+  assert.deepEqual([x.status().canConnect, x.status().enabled, x.status().mode], [true, false, null], 'client keys alone do not post');
+
+  // the authorise link: our callback, write + offline scopes, PKCE S256, a fresh state
+  const u = new URL(x.connectUrl());
+  assert.equal(u.origin + u.pathname, 'https://x.com/i/oauth2/authorize');
+  assert.equal(u.searchParams.get('redirect_uri'), 'https://hood.example/admin/x/callback');
+  assert.match(u.searchParams.get('scope'), /tweet\.write/); assert.match(u.searchParams.get('scope'), /offline\.access/);
+  assert.equal(u.searchParams.get('code_challenge_method'), 'S256');
+  const state = u.searchParams.get('state');
+  assert.equal((await x.finishConnect('code1', 'forged-state')).ok, false, 'a state this server did not hand out is refused');
+  const done = await x.finishConnect('code1', state);
+  assert.equal(done.ok, true); assert.equal(done.username, 'swigglieslog');
+  assert.equal((await x.finishConnect('code1', state)).ok, false, 'a state works once');
+  // the exchange proved the verifier and used the client secret
+  const ex = calls.find(c => c.url === 'https://api.x.com/2/oauth2/token');
+  const form = new URLSearchParams(ex.init.body);
+  assert.equal(form.get('grant_type'), 'authorization_code');
+  assert.equal(crypto.createHash('sha256').update(form.get('code_verifier')).digest('base64url'), u.searchParams.get('code_challenge'));
+  assert.equal(ex.init.headers.authorization, `Basic ${Buffer.from('cid:csec').toString('base64')}`);
+  assert.deepEqual([x.status().enabled, x.status().mode, x.status().account], [true, 'oauth2', '@swigglieslog']);
+  assert.ok(!fs.readFileSync(path.join(dir, 'x-oauth2.json'), 'utf8').includes('csec'), 'the client secret is not written to disk');
+
+  // posting uses the user token; after it expires the server renews it (X rotates the refresh token) and keeps posting
+  x.enqueue({ id: 1, result: 'Pip bought C4 from the office for 0.0038 SOL.' }, 'https://solscan.io/tx/a');
+  await x.tick();
+  assert.equal(calls.at(-1).url, 'https://api.x.com/2/tweets'); assert.equal(calls.at(-1).init.headers.authorization, 'Bearer at1');
+  t += 3 * 3600_000;
+  x.enqueue({ id: 2, result: 'Soot sold 2 crates to the office.' }, 'https://solscan.io/tx/b');
+  await x.tick();
+  const refresh = new URLSearchParams(calls.filter(c => c.url === 'https://api.x.com/2/oauth2/token').at(-1).init.body);
+  assert.equal(refresh.get('grant_type'), 'refresh_token'); assert.equal(refresh.get('refresh_token'), 'rt1');
+  assert.equal(calls.at(-1).init.headers.authorization, 'Bearer at2');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'x-oauth2.json'), 'utf8')).refresh_token, 'rt2', 'the rotated refresh token is kept');
+  assert.equal(x.status().posted, 2);
+  x.stop();
+
+  // the admin routes: Connect X needs the owner's session; the callback needs a state from that session
+  const x2 = createXPoster({ hood, env, stateDir: fs.mkdtempSync(path.join(os.tmpdir(), 'dh-x2p-')), fetchImpl: fakeFetch, gapMs: 0, now: () => t });
+  const adir = fs.mkdtempSync(path.join(os.tmpdir(), 'dh-x2a-'));
+  await writeAdminPassword(adir, 'a long enough password');
+  const admin = createAdmin({ hood, core: createOwnerCore({ hood }), stateDir: adir, xposter: x2 });
+  const call = async (method, pathname, { body = '', cookie = '', headers = {} } = {}) => {
+    let status = 0, hdrs = {}, out = '';
+    await admin({ method, headers: { host: 'hood.example', 'x-forwarded-proto': 'https', 'x-forwarded-for': '198.51.100.9', ...(cookie ? { cookie } : {}), ...headers }, socket: { remoteAddress: '127.0.0.1' }, on() {} }, { writeHead(c, h = {}) { status = c; hdrs = h; }, end(b) { out = String(b ?? ''); }, write() {} }, new URL(`http://x${pathname}`), body);
+    return { status, headers: hdrs, body: out };
+  };
+  assert.equal((await call('GET', '/admin/x/connect')).status, 303, 'not logged in: back to the login');
+  const login = await call('POST', '/admin/login', { body: `password=${encodeURIComponent('a long enough password')}`, headers: { origin: 'https://hood.example' } });
+  const cookie = login.headers['set-cookie'].split(';')[0];
+  const go = await call('GET', '/admin/x/connect', { cookie });
+  assert.equal(go.status, 302); assert.match(go.headers.location, /^https:\/\/x\.com\/i\/oauth2\/authorize\?/);
+  assert.equal((await call('GET', '/admin/x/callback?code=c&state=nope')).status, 400);
+  const st = new URL(go.headers.location).searchParams.get('state');
+  const back = await call('GET', `/admin/x/callback?code=c&state=${st}`);
+  assert.equal(back.status, 200); assert.match(back.body, /X is connected as @swigglieslog/);
+  x2.stop();
+});
+
 console.log(`\n${passed} passed`);

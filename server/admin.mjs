@@ -69,7 +69,13 @@ function loginPage({ error = '', unset = false } = {}) {
 </form></body></html>`;
 }
 
-export function createAdmin({ hood, core, stateDir, pageDir = path.join(here, 'admin') }) {
+const xPage = msg => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swigglies admin · X</title><meta name="robots" content="noindex, nofollow">
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font:15px/1.5 ui-monospace,monospace;background:#fff;color:#0b0b0b;padding:16px}
+div{max-width:520px;border:1.5px solid #0b0b0b;box-shadow:6px 6px 0 #0b0b0b;padding:24px}a{color:#0b0b0b}</style></head>
+<body><div><p>${msg}</p><p><a href="../">Back to the admin page</a></p></div></body></html>`;
+
+export function createAdmin({ hood, core, stateDir, xposter = null, pageDir = path.join(here, 'admin') }) {
   const sessions = new Map(); // token -> { created, seen }
   const fails = new Map(); // address -> [times]
   let allFails = [];
@@ -126,6 +132,13 @@ export function createAdmin({ hood, core, stateDir, pageDir = path.join(here, 'a
     const p = url.pathname;
     if (p === '/admin') { res.writeHead(301, { location: 'admin/' }); return res.end(); }
     if (req.method === 'POST' && p === '/admin/login') return login(req, res, body);
+    // X sends the owner back here after they approve the app. No session cookie arrives on that cross-site
+    // redirect (SameSite=Strict), so the proof is the one-time state this server handed to a logged-in session.
+    if (req.method === 'GET' && p === '/admin/x/callback') {
+      const r = xposter ? await xposter.finishConnect(url.searchParams.get('code'), url.searchParams.get('state')) : { ok: false, error: 'X posting is not set up on this server' };
+      const denied = url.searchParams.get('error');
+      return html(res, r.ok ? 200 : 400, xPage(r.ok ? `X is connected${r.username ? ` as @${esc(r.username)}` : ''}. Every executed transaction will be posted there as a log line with its Solscan link.` : `X was not connected: ${esc(denied ? `you declined on X (${denied})` : r.error)}.`));
+    }
     const s = session(req);
     if (req.method === 'GET' && (p === '/admin/' || p === '/admin/index.html')) {
       if (!s) return html(res, 200, loginPage({ unset: !readHash() }));
@@ -135,6 +148,13 @@ export function createAdmin({ hood, core, stateDir, pageDir = path.join(here, 'a
     if (req.method === 'POST' && p === '/admin/logout') {
       sessions.delete(s.token);
       res.writeHead(303, { ...HEADERS, location: './', 'set-cookie': cookie(req, 'x', 0) });
+      return res.end();
+    }
+    if (req.method === 'GET' && p === '/admin/x/connect') {
+      const to = xposter?.connectUrl();
+      if (!to) return html(res, 400, xPage('X cannot be connected yet: the server needs X_CLIENT_ID, X_CLIENT_SECRET and its public address.'));
+      hood.log({ kind: 'x-connect-start' });
+      res.writeHead(302, { ...HEADERS, location: to });
       return res.end();
     }
     if (req.method === 'GET' && p === '/admin/admin.js') {

@@ -39,7 +39,9 @@ async function load() {
   renderPending(r);
   renderHalt(r);
   const xs = r.x || {};
-  $('xchip').textContent = xs.enabled ? `X on · ${xs.queued} queued · ${xs.posted} posted` : xs.configured ? 'X paused' : 'X off · add keys';
+  $('xchip').textContent = xs.enabled ? `X on${xs.account ? ` ${xs.account}` : ''} · ${xs.queued} queued · ${xs.posted} posted` : xs.configured ? 'X paused' : xs.canConnect ? 'X off · connect it' : 'X off · add keys';
+  $('xconnect').hidden = !xs.canConnect;
+  $('xconnect').textContent = xs.account ? 'Reconnect X' : 'Connect X';
   $('xchip').title = xs.error ? `last X error ${xs.error.status}: ${xs.error.detail}` : xs.last ? `last post ${xs.last}` : 'posts every executed transaction to X';
   $('xchip').className = `chip ${xs.enabled && !xs.error ? 'live' : xs.error ? 'warn' : ''}`;
   $('history').innerHTML = r.recent.length ? r.recent.map(x => `<tr>
