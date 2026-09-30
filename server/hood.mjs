@@ -194,6 +194,7 @@ export class Hood extends EventEmitter {
     const feed = p.apply();
     if (sig) { try { await this.refresh(); } catch (e) { this.chainFail(e); } }
     this.publish(feed, p.fx, sig, by);
+    if (move.type === 'say' && feed[0]) this.emit('said', { agent: id, name: E.agentOf(this.s, id).name, text: String(move.text || ''), feedId: feed[0].id });
     return { ok: true, sig, text: feed.map(f => f.text).join(' ') || 'done', solscan: sig ? solscanTx(this.s.cluster, sig) : null };
   }
 
@@ -201,7 +202,7 @@ export class Hood extends EventEmitter {
     return this.run(async () => {
       if (this.s.halted) return { ok: false, halted: true };
       if (this.ownerExecutes) {
-        if ((this.s.proposals || []).some(x => x.kind === 'house' && x.action.type === 'epoch' && this.open(x))) return { ok: false, waiting: true };
+        if (this.openHouse('epoch')) return { ok: false, waiting: true };
         try { await this.refresh(); } catch (e) { this.chainFail(e); }
         const p = E.planEpoch(this.s, Date.now(), this.rnd);
         if (!p.transfers.length) { const { feed, fx } = p.apply(); this.publish(feed, [...p.fx, ...fx], null, 'office'); return { ok: true, sig: null }; }
@@ -251,10 +252,11 @@ export class Hood extends EventEmitter {
   // sendPlan() refuses to sign anything that is not inside an owner approval.
 
   // A version of everything that decides what a move costs and does: balances, crates, lots, builds,
-  // listings, the epoch and the unit. Proposals, seats, the tape and walking do not change it.
+  // listings, shields and the unit. Proposals, seats, the tape, walking and the bare epoch counter do not change
+  // it (a quiet epoch that moves nothing must not send every pending proposal stale).
   boardVersion() {
     const s = this.s;
-    const core = [s.epoch, s.unit, !!s.staked, s.office.balance, s.agents.map(a => [a.id, a.balance, a.crates, a.status, a.shieldUntil ?? null]), s.lots, s.listings];
+    const core = [s.unit, !!s.staked, s.office.balance, s.agents.map(a => [a.id, a.balance, a.crates, a.status, a.shieldUntil ?? null]), s.lots, s.listings];
     return `b${crypto.createHash('sha256').update(JSON.stringify(core)).digest('hex').slice(0, 24)}`;
   }
 
@@ -320,9 +322,21 @@ export class Hood extends EventEmitter {
   }
 
   // The house's own transaction as a proposal (ownerExecutes only). `finish(sig)` applies it once sent.
+  // The open house proposal of this type, if it is still valid; a stale one is closed so a fresh one can replace it.
+  openHouse(type) {
+    const x = (this.s.proposals || []).find(y => y.kind === 'house' && y.action.type === type && this.open(y));
+    if (!x || x.status === 'executing') return x || null;
+    const problem = this.bindingProblem(x, this.planFor(x));
+    if (!problem) return x;
+    Object.assign(x, { status: 'stale', reason: `${problem}; the house proposed it again`, closedAt: Date.now(), closedBy: 'the house' });
+    this.housePlans.delete(x.id);
+    this.log({ kind: 'proposal-stale', id: x.id, reason: x.reason });
+    return null;
+  }
+
   proposeHouse(type, p, finish) {
     const s = this.s;
-    if (s.halted || (s.proposals || []).some(x => x.kind === 'house' && x.action.type === type && this.open(x))) return null;
+    if (s.halted || this.openHouse(type)) return null;
     s.proposals ||= [];
     const nid = (s.nextProposal || 0) + 1, at = Date.now(), memo = `${p.memo} [p${nid}]`;
     const transfers = p.transfers.map(t => ({ from: t.from, to: t.to, lamports: t.lamports }));
@@ -411,10 +425,14 @@ export class Hood extends EventEmitter {
   bindingProblem(x, p) {
     if (p.error) return `the rules now refuse it: ${p.error}`;
     if (x.network !== this.s.cluster) return `it was proposed on ${x.network}, the hood is on ${this.s.cluster}`;
+    // A house proposal (the stake, a rent roll) was planned from the whole board, so any change sends it stale. A
+    // player's proposal goes stale when the relevant state changed: the rules now refuse it, or re-planning it now
+    // would pay a different payer, recipient or amount (a price moved), or cost more in fees. Moves elsewhere on the
+    // board that leave its transaction identical do not.
     const bv = this.boardVersion();
-    if (bv !== x.boardVersion) return `the board changed since it was proposed (version ${x.boardVersion} is now ${bv})`;
+    if (x.kind === 'house' && bv !== x.boardVersion) return `the board changed since it was proposed (version ${x.boardVersion} is now ${bv})`;
     if (!x.offchain) {
-      if (!sameTransfers(p, x)) return 'the payer, a recipient, an amount or the memo changed since it was proposed';
+      if (!sameTransfers(p, x)) return 'the board changed since it was proposed: the payer, a recipient or an amount would differ now';
       if (this.feeFor(p) > x.fee) return `the network fee rose above the proposed ${x.fee} lamports`;
       if (this.txTemplate(p, x.memo) !== x.transactionHash) return 'the exact transaction changed (instructions, accounts or fee settings)';
     }

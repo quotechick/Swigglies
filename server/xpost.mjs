@@ -5,6 +5,9 @@
 //     refresh token (STATE_DIR/x-oauth2.json) and renews the access token itself. The app's callback URI must include
 //     X_REDIRECT_URI (default: <PUBLIC_URL>admin/x/callback).
 //   OAuth 1.0a: X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_SECRET (an access token made with Read and write).
+// Players' lines: what a player says on the tape (hood_say) is posted too, from the same main account and labelled
+// with the player's name: no links or @mentions, at most one per player every X_SAY_GAP_MIN minutes (default 20)
+// and X_SAY_PER_HOUR in total (default 10). X_SAY=off keeps them on the tape only.
 // Optional: X_POSTS=off pauses posting; X_SUFFIX adds a closing line.
 // Posts go out one at a time, at least X_GAP_S seconds apart (default 30), from a queue kept on disk
 // (STATE_DIR/xposts.json), so a restart never double-posts and a rate limit only delays them.
@@ -104,6 +107,25 @@ export function createXPoster({ hood, env = process.env, stateDir, fetchImpl = g
     return tok.access_token;
   }
 
+  // a player's line: cleaned (no links, no @mentions), rate-limited, labelled with the player's name
+  const sayGap = Number(env.X_SAY_GAP_MIN || 20) * 60_000, sayPerHour = Number(env.X_SAY_PER_HOUR || 10);
+  const lastSay = new Map(), sayTimes = [];
+  function enqueueSay({ agent, name, text, feedId }) {
+    if (env.X_SAY === 'off') return false;
+    const t = now();
+    if (lastSay.has(agent) && t - lastSay.get(agent) < sayGap) return false;
+    while (sayTimes.length && t - sayTimes[0] > 3_600_000) sayTimes.shift();
+    if (sayTimes.length >= sayPerHour) return false;
+    const clean = String(text).replace(/https?:\/\/\S+|www\.\S+/gi, '').replace(/@(\w+)/g, '$1').replace(/\s+/g, ' ').trim().slice(0, 230);
+    if (!clean) return false;
+    const key = `say-${feedId ?? t}`;
+    if (box.posted[key] || box.queue.some(q => q.key === key)) return false;
+    lastSay.set(agent, t); sayTimes.push(t);
+    box.queue.push({ key, text: `${name}, a Swigglies player: "${clean}"`, at: t, tries: 0 });
+    save();
+    return true;
+  }
+
   function enqueue(x, receipt) {
     const key = String(x.id);
     if (box.posted[key] || box.queue.some(q => q.key === key)) return false; // never twice
@@ -128,13 +150,19 @@ export function createXPoster({ hood, env = process.env, stateDir, fetchImpl = g
         box.error = null;
         nextAt = now() + gapMs;
         hood.log({ kind: 'x-posted', proposal: q.key, tweet: body.data.id });
+      } else if (r.status === 403 && /duplicate/i.test(String(body?.detail || ''))) {
+        // already on X (posted by hand, or a retry that landed): count it as posted and go straight to the next one
+        box.queue.shift();
+        box.posted[q.key] = 'duplicate';
+        box.error = null;
+        nextAt = now();
+        hood.log({ kind: 'x-post-duplicate', proposal: q.key });
       } else {
         q.tries++;
         // a rate limit waits for its reset; anything else backs off, up to an hour
         const reset = Number(r.headers?.get?.('x-rate-limit-reset')) * 1000;
         nextAt = r.status === 429 && reset > now() ? reset + 5_000 : now() + Math.min(3_600_000, 60_000 * 2 ** Math.min(q.tries, 6));
         box.error = { status: r.status, detail: String(body?.detail || body?.title || body?.errors?.[0]?.message || '').slice(0, 200), at: now() };
-        if (r.status === 403 && /duplicate/i.test(box.error.detail)) { box.queue.shift(); box.posted[q.key] = 'duplicate'; }
         hood.log({ kind: 'x-post-failed', proposal: q.key, status: r.status, detail: box.error.detail });
       }
     } catch (e) {
@@ -150,13 +178,15 @@ export function createXPoster({ hood, env = process.env, stateDir, fetchImpl = g
 
   // only while switched on: turning it on later does not flood the account with old moves
   const onExecuted = ({ proposal, receipt }) => { if (enabled() && receipt) enqueue(proposal, receipt); };
+  const onSaid = said => { if (enabled()) enqueueSay(said); };
   hood.on('executed', onExecuted);
+  hood.on('said', onSaid);
   const timer = setInterval(() => { tick().catch(() => {}); }, 5_000);
   timer.unref?.();
 
   return {
-    enqueue, tick, connectUrl, finishConnect,
-    stop: () => { clearInterval(timer); hood.off('executed', onExecuted); },
+    enqueue, enqueueSay, tick, connectUrl, finishConnect,
+    stop: () => { clearInterval(timer); hood.off('executed', onExecuted); hood.off('said', onSaid); },
     status: () => ({
       enabled: enabled(), configured: !!mode(), mode: mode(), canConnect, account: tok?.user?.username ? `@${tok.user.username}` : null,
       queued: box.queue.length, posted: Object.keys(box.posted).length, last: box.last ? `https://x.com/i/web/status/${box.last.id}` : null, error: box.error,

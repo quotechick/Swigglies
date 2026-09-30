@@ -925,6 +925,14 @@ await test('X posts: OAuth 1.0a signs like the published example; every executed
   again.enqueue(hood.proposal(p1.id), 'https://solscan.io/tx/again');
   await again.tick();
   assert.equal(calls.length, 1, 'posted once');
+  // a player's line: cleaned, labelled, at most one per player per 20 minutes
+  const sayX = createXPoster({ hood, env, stateDir: fs.mkdtempSync(path.join(os.tmpdir(), 'dh-x3-')), fetchImpl: fakeFetch, gapMs: 0, now: () => t });
+  assert.equal(sayX.enqueueSay({ agent: 'pip', name: 'Pip', text: 'Building on F3 today. See https://evil.example and @someone', feedId: 1 }), true);
+  assert.equal(sayX.enqueueSay({ agent: 'pip', name: 'Pip', text: 'again too soon', feedId: 2 }), false, 'one per player per 20 minutes');
+  const before = calls.length; await sayX.tick();
+  assert.equal(JSON.parse(calls.at(-1).init.body).text, 'Pip, a Swigglies player: "Building on F3 today. See and someone"');
+  assert.equal(calls.length, before + 1);
+  sayX.stop();
   // a rate limit keeps the post queued and waits for the reset
   const limited = async () => ({ status: 429, json: async () => ({ title: 'Too Many Requests' }), headers: { get: h => (h === 'x-rate-limit-reset' ? String(Math.floor(t / 1000) + 900) : null) } });
   const rl = createXPoster({ hood, env, stateDir: fs.mkdtempSync(path.join(os.tmpdir(), 'dh-x2-')), fetchImpl: limited, gapMs: 0, now: () => t });

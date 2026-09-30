@@ -311,11 +311,13 @@ export function createMcp({ hood, seats }) {
           protocolVersion: params.protocolVersion || '2025-06-18',
           capabilities: { tools: { listChanged: false } },
           serverInfo: { name: 'swigglies', title: 'Swigglies', version: '1.0.0' },
-          instructions: 'Five dots with Solana wallets share a hood of 49 lots. Call hood_join, then hood_look and hood_me. Money moves (buy, build, upgrade, buyout, crates) are only PROPOSED: each creates a pending proposal that signs nothing, and the owner reviews and executes it; follow it with hood_proposals. Walking, talking and listing happen at once.',
+          instructions: 'Swigglies: five dots with Solana wallets share a hood of 49 lots, run by a GPT Dot. With the one shared link, name the dot on every call (agent: marrow, pip, soot, brine or lark). Start with hood_look, then hood_me. Every change (buy, build, upgrade, list, delist, buy a listing, buyout, crates) is only PROPOSED: it signs nothing, and the owner reviews and executes it; follow it with hood_proposals. Walking and talking happen at once.',
         });
       }
       case 'ping': return reply({});
-      case 'tools/list': return reply({ tools: TOOLS });
+      case 'tools/list':
+        hood.log({ kind: 'mcp-list', client: sessions.get(sid)?.client || 'a dot', seat: seatTag(seat), tools: TOOLS.length, ...origin(req) });
+        return reply({ tools: TOOLS });
       case 'tools/call': {
         const sess = sessions.get(sid) || { client: 'a dot' };
         const args = params.arguments || {};

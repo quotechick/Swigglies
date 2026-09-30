@@ -113,8 +113,9 @@ is open.
   challenge. The challenge is an HMAC bound to the session, the proposal id and both hashes, valid 15 minutes, and is
   handed out only when the page loaded that proposal. The body names `proposalHash` and `transactionHash`. Seat and
   house keys never work there.
-- **Re-checked at the click, under the queue.** Pending and not expired, both hashes equal, the same network, the
-  same board version, a fresh plan identical (payer, transfers, memo), the fee no higher, the template identical, the
+- **Re-checked at the click, under the queue.** Pending and not expired, both hashes equal, the same network, a
+  fresh plan identical (payer, transfers, memo: a moved price or a changed recipient shows up here), the rules still
+  allowing it, the fee no higher, the template identical (house proposals also need the same board version), the
   signer's guard satisfied (only the six hood wallets, the daily ceiling, the pinned genesis), and the daily
   transaction cap. Any miss sends it stale with a reason, and nothing is sent.
 - **Once.** `pending → executing` is written to disk before anything is transmitted. A second click, concurrent or

@@ -266,3 +266,10 @@ h3 { font-family: var(--pixel); font-weight: 600; letter-spacing: 0; }
 }
 /* the pixel face is wider: the wall drops its secondary columns sooner */
 @media (max-width: 700px) { .wall td.hide-s { display: none; } }
+
+/* the token's contract address, at the very top of every page */
+.cabar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 10px; padding: 7px 16px; background: #0b0b0b; color: #fff; font: 12px var(--px); letter-spacing: 0.4px; }
+.cabar .k { padding: 2px 6px; background: #fff; color: #0b0b0b; }
+.cabar .ca { font: 12.5px var(--mono); letter-spacing: 0; word-break: break-all; }
+.cabar .cacopy { font: 700 12px var(--pixel); padding: 3px 12px; color: #0b0b0b; background: #fff; border: 1.5px solid #fff; box-shadow: 2px 2px 0 var(--grey); cursor: pointer; }
+.cabar .cacopy:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--grey); }

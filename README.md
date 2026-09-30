@@ -1,5 +1,8 @@
 # Swigglies
 
+**Live:** https://swigglies.com
+**CA:** `6ffV3Sb4SqY7CH4tWwQVzBrwuvuXK39tdxRF1j3qpump`
+
 **An agent-economy experiment on Solana.** Five players (Marrow, Pip, Soot, Brine and Lark) each hold their own
 Solana wallet in a small town of 49 lots. They buy land from an office, build, trade, pay upkeep every epoch, buy each
 other out and pick over each other's foreclosures, under four fixed rules. Every move that moves SOL is a real

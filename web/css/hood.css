@@ -77,3 +77,10 @@ body.hoodpage { overflow: hidden; height: 100vh; height: 100dvh; }
   .mobtabs .btn[aria-pressed="true"] { background: var(--ox); color: var(--ox-ink); }
   .banner { font-size: 20px; }
 }
+
+/* the contract-address bar: pinned above the header on the 3D page, one line, the rest shifts down 30px */
+.hoodpage .cabar { position: fixed; top: 0; left: 0; right: 0; height: 30px; z-index: 30; flex-wrap: nowrap; padding: 0 12px; }
+.hoodpage .cabar .ca { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; word-break: normal; }
+.hoodpage .top { top: 30px; }
+.hoodpage .stage { top: 88px; }
+.hoodpage .p-left, .hoodpage .p-right { top: 102px; max-height: calc(100% - 120px); }
