@@ -1,0 +1,28 @@
+# systemd unit for Swigglies. Copy to /etc/systemd/system/swigglies.service and adjust the paths.
+# Secrets go in /etc/swigglies.env (root, mode 600): SWIGGLIES_KEY=<64 hex>, CLUSTER=devnet. See .env.example.
+[Unit]
+Description=Swigglies agent-economy experiment on 127.0.0.1:8162
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=swigglies
+Group=swigglies
+WorkingDirectory=/opt/swigglies/server
+EnvironmentFile=/etc/swigglies.env
+Environment=PORT=8162 HOST=127.0.0.1 STATE_DIR=/var/lib/swigglies WEB_DIR=/opt/swigglies/web NODE_ENV=production PUBLIC_URL=https://your-host.example/swigglies/
+ExecStart=/usr/bin/node /opt/swigglies/server/main.mjs
+Restart=always
+RestartSec=3
+StateDirectory=swigglies
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/swigglies
+MemoryMax=300M
+
+[Install]
+WantedBy=multi-user.target

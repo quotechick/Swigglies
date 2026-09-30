@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swigglies admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Spectral:wght@400;600&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  :root { --paper: #fff; --paper-2: #f2f2f2; --ink: #0b0b0b; --ink-2: #3a3a3a; --muted: #767676; --rule: rgba(0,0,0,.14); --ok: #0b0b0b; --bad: #8c1c22;
+    --mono: "JetBrains Mono", ui-monospace, monospace; --serif: "IM Fell English SC", Georgia, serif; --body: Spectral, Georgia, serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 var(--body);
+    background-image: radial-gradient(rgba(0,0,0,.06) .6px, transparent .7px); background-size: 4px 4px; }
+  header { position: sticky; top: 0; z-index: 5; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; padding: 12px 22px; background: rgba(255,255,255,.95); border-bottom: 1.5px solid var(--ink); }
+  .logo { font: 26px/1 var(--serif); letter-spacing: .12em; }
+  .logo .o { display: inline-block; width: .6em; height: .6em; border-radius: 50%; background: var(--ink); margin: 0 .05em; }
+  .chip { font: 11px var(--mono); letter-spacing: 1.2px; text-transform: uppercase; border: 1.2px solid var(--ink); padding: 3px 8px; }
+  .chip.live { background: var(--ink); color: #fff; }
+  .chip.warn { border-color: var(--bad); color: var(--bad); }
+  .wallets { display: flex; gap: 14px; flex-wrap: wrap; font: 12px var(--mono); margin-left: auto; }
+  .wallets span i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.2px solid var(--ink); margin-right: 5px; vertical-align: -1px; }
+  main { max-width: 1060px; margin: 0 auto; padding: 22px; }
+  h2 { font: 28px var(--serif); letter-spacing: .05em; margin: 18px 0 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .btn { font: 12px var(--mono); letter-spacing: 1.4px; text-transform: uppercase; padding: 10px 14px; border: 1.4px solid var(--ink); background: var(--ink); color: #fff; cursor: pointer; box-shadow: 3px 3px 0 #9e9e9e; }
+  .btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #9e9e9e; }
+  .btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #9e9e9e; }
+  .btn.ghost { background: #fff; color: var(--ink); }
+  .btn[disabled] { opacity: .35; cursor: not-allowed; transform: none; }
+  .card { display: grid; grid-template-columns: 8px 1fr auto; gap: 0 16px; border: 1.5px solid var(--ink); background: #fff; box-shadow: 4px 4px 0 var(--ink); margin: 0 0 16px; }
+  .card .bar { grid-row: span 2; }
+  .card .body { padding: 14px 0; min-width: 0; }
+  .card .acts { padding: 14px 14px 14px 0; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+  .meta { font: 11.5px var(--mono); color: var(--muted); letter-spacing: .5px; }
+  .what { font: 22px var(--serif); margin: 4px 0; }
+  .pays { font: 14px var(--mono); }
+  .memo { font: 12px var(--mono); color: var(--ink-2); word-break: break-all; }
+  .check { font: 12.5px var(--mono); margin-top: 6px; }
+  .check.no { color: var(--bad); }
+  .halted { border: 2px solid var(--bad); color: var(--bad); font: 13px var(--mono); padding: 12px 14px; margin: 0 0 16px; }
+  .empty { border: 1.5px dashed var(--rule); padding: 26px; text-align: center; font: 13px var(--mono); color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  td { padding: 9px 6px; border-bottom: 1px dashed var(--rule); vertical-align: baseline; }
+  td.m { font: 12px var(--mono); white-space: nowrap; }
+  td a { color: var(--ink); font: 12px var(--mono); }
+  .toast { position: fixed; right: 18px; bottom: 18px; max-width: 460px; background: var(--ink); color: #fff; font: 13px var(--mono); padding: 12px 16px; box-shadow: 4px 4px 0 #9e9e9e; }
+  .toast a { color: #fff; }
+  .toast.bad { background: var(--bad); }
+  .out { margin: 0; }
+  @media (max-width: 640px) { header { padding: 10px 16px; } main { padding: 16px; } .card { grid-template-columns: 8px 1fr; } .card .acts { grid-column: 2; flex-direction: row; padding: 0 14px 14px 0; } .card .body { padding-right: 14px; } .wallets { margin-left: 0; } }
+  footer { max-width: 1060px; margin: 30px auto; padding: 0 22px 30px; font: 12px var(--mono); color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">SWIGGLIES<span class="o"></span> · ADMIN</div>
+  <span class="chip" id="tunnel">connecting …</span>
+  <span class="chip" id="cluster">…</span>
+  <span class="chip" id="epoch">epoch …</span>
+  <span class="chip" id="xchip" title="posts every executed transaction to X">X …</span>
+  <div class="wallets" id="wallets"></div>
+  <form class="out" method="post" action="logout"><button class="btn ghost" type="submit">Log out</button></form>
+</header>
+<main>
+  <h2><span>Waiting for you <span id="count" class="meta"></span></span>
+    <span><button class="btn ghost" id="halt">Stop hood</button> <button class="btn ghost" id="alerts">Enable alerts</button> <button class="btn" id="all" disabled>Accept all valid</button></span></h2>
+  <div id="halted" class="halted" hidden></div>
+  <div id="pending"><div class="empty">Connecting to the hood…</div></div>
+  <h2><span>History</span><span class="meta">executed moves link their Solscan receipt</span></h2>
+  <table><tbody id="history"></tbody></table>
+</main>
+<footer>Runs only on this PC. Nothing moves unless you press Accept; the players can only propose. A proposal the board has overtaken goes stale instead of executing at a new price, and one left for 30 minutes expires.</footer>
+<script src="admin.js" defer></script>
+</body>
+</html>

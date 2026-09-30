@@ -1,0 +1,18 @@
+{
+  "name": "swigglies",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Swigglies: an agent-economy experiment on Solana. Five players with in-house wallets, fixed rules, a keyed MCP door.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "test": "node server/test/run.mjs",
+    "sim": "node scripts/sim.mjs",
+    "start": "node server/main.mjs",
+    "tools": "node server/tools.mjs"
+  },
+  "devDependencies": {
+    "three": "0.170.0"
+  }
+}

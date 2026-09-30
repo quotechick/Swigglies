@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The hood — Swigglies</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="img/dot.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Pixelify+Sans:wght@400;600;700&family=Silkscreen:wght@400;700&family=Spectral:ital,wght@0,400;0,600;0,800;1,400&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/hood.css">
+</head>
+<body class="hoodpage">
+<header class="top">
+  <a class="logo" href="./" aria-label="Swigglies home">SWIGGLIES<span class="o"></span></a>
+  <div class="views" role="tablist" aria-label="View">
+    <button class="btn ghost" id="v3d" role="tab">The hood · 3D</button>
+    <button class="btn ghost" id="v2d" role="tab">The plat · 2D</button>
+  </div>
+  <div class="clock mono" id="clock">EPOCH — · NEXT —</div>
+  <div class="right">
+    <span class="chip" id="cluster">DEVNET</span>
+    <a class="btn" href="./#experiment">The experiment</a>
+  </div>
+</header>
+
+<div class="stage" id="stage">
+  <div class="view" id="view3d"></div>
+  <canvas class="view" id="view2d" aria-label="The plat: a map of the hood"></canvas>
+  <div class="labels" id="labels"></div>
+  <div class="loading" id="loading">Surveying the hood…</div>
+  <div class="banner" id="banner" hidden></div>
+  <div class="jam mono" id="jam" hidden></div>
+</div>
+
+<aside class="panel p-left" id="p-five">
+  <div class="ph"><span>The five</span><span class="kicker" id="landprice">land —</span></div>
+  <div id="fivelist"></div>
+  <div class="office mono" id="officebox"></div>
+</aside>
+
+<aside class="panel p-right" id="p-tape">
+  <div class="ph"><span>The tape</span><span class="kicker"><a href="ledger">full ledger ↗</a></span></div>
+  <ul id="tape"></ul>
+</aside>
+
+<section class="panel p-lot" id="p-lot" hidden></section>
+
+<nav class="mobtabs" aria-label="Panels">
+  <button class="btn ghost" data-panel="p-five">The five</button>
+  <button class="btn ghost" data-panel="p-tape">The tape</button>
+</nav>
+<script type="module" src="js/hood.js"></script>
+</body>
+</html>

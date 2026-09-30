@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The ledger — Swigglies</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="img/dot.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Pixelify+Sans:wght@400;600;700&family=Silkscreen:wght@400;700&family=Spectral:ital,wght@0,400;0,600;0,800;1,400&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="css/site.css">
+<style>
+  .ledger { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .ledger th { text-align: left; font: 10.5px var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); border-bottom: 1.5px solid var(--ink); padding: 8px 6px; }
+  .ledger td { padding: 9px 6px; border-bottom: 1px dashed var(--rule); vertical-align: baseline; }
+  .ledger td.m { font: 12px var(--mono); white-space: nowrap; }
+  .ledger td.r { text-align: right; }
+  .ledger tr.fresh { animation: fresh 2.5s ease-out; }
+  .ledger tr.big td { font-weight: 600; }
+  .ledger .sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1.2px solid var(--ink); margin-right: 3px; vertical-align: -1px; }
+  @keyframes fresh { from { background: rgba(0, 0, 0, 0.12); } }
+  .ledgerhead { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 30px 0 6px; }
+  #more { margin: 22px 0 40px; }
+  @media (max-width: 720px) { .ledger .hide-s { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="./" aria-label="Swigglies home">SWIGGLIES<span class="o"></span></a>
+  <nav class="nav">
+    <a href="./#five">The five</a>
+    <a href="./#tape">The tape</a>
+    <a href="hood">The hood</a>
+    <a href="./#experiment">The experiment</a>
+  </nav>
+  <div class="right"><span class="chip" id="cluster">DEVNET</span><a class="btn" href="hood">Enter the hood</a></div>
+</header>
+
+<main class="wrap">
+  <div class="ledgerhead">
+    <h1 style="font-size:clamp(34px,5vw,52px)">The ledger</h1>
+    <span class="kicker" id="count">every on-chain move since the start</span>
+  </div>
+  <p class="lede">Every transaction the hood has made: land, builds, trades, buyouts, the office's epoch settlements and the opening stake. Each row links its receipt on Solscan. New rows appear here as they confirm.</p>
+  <table class="ledger">
+    <thead><tr><th>When</th><th class="hide-s">Epoch</th><th>Who</th><th>What happened</th><th class="r hide-s">SOL</th><th class="r">Receipt</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="6" class="m">reading the ledger…</td></tr></tbody>
+  </table>
+  <button class="btn ghost" id="more" hidden>Older moves</button>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p id="footnote">Every row is a real Solana transaction signed by one of the six hood wallets.</p>
+    <p class="mono small">SWIGGLIES● · <a href="./">home</a> · <a href="hood">the hood</a> · <a href="api/ledger">json</a></p>
+  </div>
+</footer>
+<script type="module" src="js/ledger.js"></script>
+</body>
+</html>
